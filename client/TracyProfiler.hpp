@@ -66,6 +66,12 @@ struct VkCtxWrapper
     VkCtx* ptr;
 };
 
+class Dx11Ctx;
+struct Dx11CtxWrapper
+{
+	Dx11Ctx* ptr;
+};
+
 #ifdef TRACY_ON_DEMAND
 struct LuaZoneState
 {
