@@ -69,7 +69,7 @@ struct VkCtxWrapper
 class Dx11Ctx;
 struct Dx11CtxWrapper
 {
-	Dx11Ctx* ptr;
+    Dx11Ctx* ptr;
 };
 
 #ifdef TRACY_ON_DEMAND
