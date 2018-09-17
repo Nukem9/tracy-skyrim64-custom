@@ -694,6 +694,7 @@ std::atomic<uint8_t> init_order(104) s_gpuCtxCounter( 0 );
 
 thread_local GpuCtxWrapper init_order(104) s_gpuCtx { nullptr };
 VkCtxWrapper init_order(104) s_vkCtx { nullptr };
+Dx11CtxWrapper init_order(104) s_dx11Ctx { nullptr };
 
 #ifdef TRACY_COLLECT_THREAD_NAMES
 struct ThreadNameData;
