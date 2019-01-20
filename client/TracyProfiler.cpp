@@ -26,6 +26,10 @@
 #  include <sys/syscall.h>
 #endif
 
+#ifndef PRIxMAX
+#define PRIxMAX "I64x"
+#endif
+
 #include <atomic>
 #include <assert.h>
 #include <chrono>

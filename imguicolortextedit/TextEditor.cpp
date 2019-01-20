@@ -7,7 +7,7 @@
 #include "TextEditor.h"
 
 #define IMGUI_DEFINE_MATH_OPERATORS
-#include "../imgui/imgui.h" // for imGui::GetCurrentWindow()
+#include "../../imgui/imgui.h" // for imGui::GetCurrentWindow()
 
 namespace tracy
 {
