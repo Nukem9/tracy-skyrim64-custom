@@ -2,7 +2,7 @@
 
 [![Build status](https://ci.appveyor.com/api/projects/status/968a88arq06gm3el/branch/master?svg=true)](https://ci.appveyor.com/project/wolfpld/tracy/branch/master)
 
-Tracy is a real time, nanosecond resolution frame profiler that can be used for remote or embedded telemetry of your application. It can profile CPU (C++, Lua), GPU (OpenGL, Vulkan) and memory. It also can display locks held by threads and their interactions with each other.
+Tracy is a real time, nanosecond resolution frame profiler that can be used for remote or embedded telemetry of your application. It can profile CPU (C, C++, Lua), GPU (OpenGL, Vulkan) and memory. It also can display locks held by threads and their interactions with each other.
 
 ![](doc/profiler.png)
 
@@ -23,7 +23,8 @@ The following compilers are supported:
 - clang
 
 [Introduction to Tracy Profiler v0.2](https://www.youtube.com/watch?v=fB5B46lbapc)  
-[New features in Tracy Profiler v0.3](https://www.youtube.com/watch?v=3SXpDpDh2Uo)
+[New features in Tracy Profiler v0.3](https://www.youtube.com/watch?v=3SXpDpDh2Uo)  
+[New features in Tracy Profiler v0.4](https://www.youtube.com/watch?v=eAkgkaO8B9o)
 
 [A quick FAQ.](FAQ.md)  
 [List of changes.](NEWS)
@@ -51,6 +52,14 @@ The user manual for Tracy is available [at the following address](https://bitbuc
 
 ## Features
 
+#### Histogram of function execution times
+
+![](doc/histogram.png)
+
+#### Comparison of two profiling runs
+
+![](doc/compare.png)
+
 #### Marking locks
 
 ![](doc/locks.png)
@@ -62,7 +71,3 @@ The user manual for Tracy is available [at the following address](https://bitbuc
 #### Message log
 
 ![](doc/messages.png)
-
-#### Approximation of capture cost
-
-![](doc/cost.png)

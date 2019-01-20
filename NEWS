@@ -6,7 +6,44 @@ Note: Release numbers are nothing more than numbers. There are some
 "missing" versions due to trace file changes during development. This is not
 a mistake.
 
-v0.4 (xxxx-xx-xx)
+v0.5 (xxxx-xx-xx)
+-----------------
+
+- Major decrease of trace dump file size.
+- Display dump file size change in the update utility.
+- Display trace loading time.
+- Added C API.
+- Profiling session may now gracefully terminate, due to incorrect
+  instrumentation. A popup with termination reason will be displayed.
+
+v0.4.1 (2018-12-30)
+-------------------
+
+- Active frame set can be now switched by clicking on a frame set on the
+  timeline.
+- Add ability to go to a specified frame.
+- Most commonly used addresses can be now selected from the drop-down menu.
+- Fixed corner case problem with profiler initialization on Windows.
+- Added third state (stopped) to the pause/resume button. It will be used
+  after the connection to the client is terminated.
+- Active trace can be discarded.
+- Call stack capture may be forced through TRACY_CALLSTACK define.
+- Lock info window has been added.
+- Time of lock creation and termination is now being tracked.
+- Menu bar buttons are now toggles that can also close their corresponding
+  windows.
+- Find zone and compare menu improvements.
+  - Ability to ignore case during search.
+  - Pressing enter key will now start search, just like pressing the "find"
+    button.
+  - Using the ^F keyboard shortcut will open the find zone menu and focus
+    the input box.
+- Added ability to automatically connect to an IP address in the graphical
+  profiler application (use "-a address" argument to enable).
+- Pressing enter key after entering client address in the welcome dialog
+  will now automatically begin connection process.
+
+v0.4 (2018-10-09)
 -----------------
 
 - Renamed "standalone" utility to "profiler".
@@ -31,14 +68,19 @@ v0.4 (xxxx-xx-xx)
   environmental variable to 1 to get the same effect.
 - Added ability to show/hide all threads and plots.
 - Performance improvements.
-- Added memory allocation info window.
-- Selecting memory allocation on a plot will draw time range of the
-  allocation.
+- Improvements to memory data presentation.
+  - Added memory allocation info window.
+  - Selecting memory allocation on a plot will draw time range of the
+    allocation.
+  - Middle clicking on an memory allocation address (or on a button in
+    memory allocation info window) will zoom the view to the allocation
+    range.
 - Find zone menu improvements:
   - Zones can be now also grouped by call stacks.
   - Zone groups can be now also sorted by time spend in each zone.
   - Zone groups list now displays group times.
   - Average and median zone times are now displayed on the histogram.
+  - Selected zones will be highlighted on the timeline view.
 - Added named versions of tracing macros that allow specifying scoped
   variable name.
 - The main profiler window is now kept at the bottom of windows stack.
@@ -57,12 +99,15 @@ v0.4 (xxxx-xx-xx)
 - Added support for cross-DLL profiling.
 - Items in options menu (locks, threads, etc.) are now described with number
   of events.
+  - Source location of lock declaration is also provided.
 - Created an extensive user manual for the profiler.
 - Added ability to capture multiple frame sets.
   - Viewer will display multiple frame ranges at once.
   - Only one frame set can be active at once. The selected one is used for
     the frame navigation graph, frame navigation buttons and drawing frame
     separators.
+  - The active frame set will be highlighted, and the rest will be dimmed
+    out.
   - Frames can now also be discontinuous.
 - Frames and zones too small to be displayed will be marked with a zig-zag
   pattern.
@@ -76,6 +121,7 @@ v0.4 (xxxx-xx-xx)
   - This includes frame time statistics and histogram.
 - Displayed memory sizes are now properly formatted.
 - Added call stack tree for memory allocations.
+  - You can display allocations list for each call stack tree entry.
 - The source code of the profiled application may now be viewed in the
   profiler.
   - BIG FAT WARNING: The actual profiled program source code is not known to
@@ -125,6 +171,7 @@ v0.4 (xxxx-xx-xx)
   - Client not in on-demand mode will refuse connections after the first
     connection was made and the initial event buffers were cleared.
 - A single server will no longer try to connect to multiple clients.
+- The capture utility will now display time span of the ongoing capture.
 
 
 v0.3.3 (2018-07-03)

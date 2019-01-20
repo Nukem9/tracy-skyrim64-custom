@@ -64,6 +64,14 @@ private:
         Short
     };
 
+    enum class ShortcutAction : uint8_t
+    {
+        None,
+        OpenFind
+    };
+
+    enum { InvalidId = 0xFFFFFFFF };
+
     void InitTextEditor();
 
     const char* ShortenNamespace( const char* name ) const;
@@ -73,7 +81,7 @@ private:
     void DrawTextContrast( ImDrawList* draw, const ImVec2& pos, uint32_t color, const char* text );
 
     bool DrawImpl();
-    void DrawConnection();
+    bool DrawConnection();
     void DrawFrames();
     bool DrawZoneFramesHeader();
     bool DrawZoneFrames( const FrameData& frames );
@@ -93,11 +101,14 @@ private:
     void DrawFindZone();
     void DrawStatistics();
     void DrawMemory();
+    void DrawAllocList();
     void DrawCompare();
     void DrawCallstackWindow();
     void DrawMemoryAllocWindow();
     void DrawInfo();
     void DrawTextEditor();
+    void DrawGoToFrame();
+    void DrawLockInfoWindow();
 
     template<class T>
     void ListMemData( T ptr, T end, std::function<void(T&)> DrawAddress, const char* id = nullptr );
@@ -149,6 +160,7 @@ private:
     const char* GetPlotName( const PlotData* plot ) const;
 
     void SmallCallstackButton( const char* name, uint32_t callstack, int& idx );
+    void SetViewToLastFrames();
 
     flat_hash_map<const void*, bool, nohash<const void*>> m_visible;
     flat_hash_map<uint64_t, bool, nohash<uint64_t>> m_visibleMsgThread;
@@ -198,61 +210,66 @@ private:
     Worker m_worker;
     bool m_staticView;
 
-    int m_frameScale;
+    int m_frameScale = 0;
     bool m_pause;
-    int m_frameStart;
+    int m_frameStart = 0;
 
-    int64_t m_zvStart;
-    int64_t m_zvEnd;
-    int64_t m_lastTime;
+    int64_t m_zvStart = 0;
+    int64_t m_zvEnd = 0;
 
     int8_t m_lastCpu;
 
-    int m_zvHeight;
-    int m_zvScroll;
+    int m_zvHeight = 0;
+    int m_zvScroll = 0;
 
-    const ZoneEvent* m_zoneInfoWindow;
+    const ZoneEvent* m_zoneInfoWindow = nullptr;
     const ZoneEvent* m_zoneHighlight;
-    DecayValue<uint64_t> m_zoneSrcLocHighlight;
-    LockHighlight m_lockHighlight;
-    DecayValue<const MessageData*> m_msgHighlight;
-    const MessageData* m_msgToFocus;
-    const GpuEvent* m_gpuInfoWindow;
+    DecayValue<uint64_t> m_zoneSrcLocHighlight = 0;
+    LockHighlight m_lockHighlight { -1 };
+    DecayValue<const MessageData*> m_msgHighlight = nullptr;
+    const MessageData* m_msgToFocus = nullptr;
+    const GpuEvent* m_gpuInfoWindow = nullptr;
     const GpuEvent* m_gpuHighlight;
     uint64_t m_gpuInfoWindowThread;
-    uint32_t m_callstackInfoWindow;
-    int64_t m_memoryAllocInfoWindow;
-    int64_t m_memoryAllocHover;
-    int m_memoryAllocHoverWait;
+    uint32_t m_callstackInfoWindow = 0;
+    int64_t m_memoryAllocInfoWindow = -1;
+    int64_t m_memoryAllocHover = -1;
+    int m_memoryAllocHoverWait = 0;
     const FrameData* m_frames;
+    uint32_t m_lockInfoWindow = InvalidId;
 
     Region m_highlight;
     Region m_highlightZoom;
 
-    uint64_t m_gpuThread;
-    int64_t m_gpuStart;
-    int64_t m_gpuEnd;
+    uint64_t m_gpuThread = 0;
+    int64_t m_gpuStart = 0;
+    int64_t m_gpuEnd = 0;
 
-    bool m_showOptions;
-    bool m_showMessages;
-    bool m_showStatistics;
-    bool m_showInfo;
-    bool m_drawGpuZones;
-    bool m_drawZones;
-    bool m_drawLocks;
-    bool m_drawPlots;
-    bool m_onlyContendedLocks;
+    bool m_showOptions = false;
+    bool m_showMessages = false;
+    bool m_showStatistics = false;
+    bool m_showInfo = false;
+    bool m_drawGpuZones = true;
+    bool m_drawZones = true;
+    bool m_drawLocks = true;
+    bool m_drawPlots = true;
+    bool m_onlyContendedLocks = true;
+    bool m_goToFrame = false;
 
-    int m_statSort;
-    bool m_statSelf;
-    bool m_showCallstackFrameAddress;
+    int m_statSort = 0;
+    bool m_statSelf = false;
+    bool m_showCallstackFrameAddress = false;
+    bool m_showUnknownFrames = true;
 
-    Namespace m_namespace;
+    ShortcutAction m_shortcut = ShortcutAction::None;
+    Namespace m_namespace = Namespace::Full;
     Animation m_zoomAnim;
     BuzzAnim<int> m_callstackBuzzAnim;
     BuzzAnim<int> m_callstackTreeBuzzAnim;
     BuzzAnim<const void*> m_zoneinfoBuzzAnim;
     BuzzAnim<int> m_findZoneBuzzAnim;
+    BuzzAnim<uint32_t> m_optionsLockBuzzAnim;
+    BuzzAnim<uint32_t> m_lockInfoAnim;
 
     Vector<const ZoneEvent*> m_zoneInfoStack;
     Vector<const GpuEvent*> m_gpuInfoStack;
@@ -263,7 +280,10 @@ private:
 
     float m_rootWidth, m_rootHeight;
     SetTitleCallback m_stcb;
-    bool m_titleSet;
+    bool m_titleSet = false;
+
+    float m_notificationTime = 0;
+    std::string m_notificationText;
 
     struct FindZone {
         enum : uint64_t { Unselected = std::numeric_limits<uint64_t>::max() - 1 };
@@ -277,6 +297,7 @@ private:
         };
 
         bool show = false;
+        bool ignoreCase = false;
         std::vector<int32_t> match;
         std::map<uint64_t, Group> groups;
         size_t processed;
@@ -355,6 +376,7 @@ private:
 
     struct {
         bool show = false;
+        bool ignoreCase = false;
         std::unique_ptr<Worker> second;
         std::thread loadThread;
         int badVer = 0;
@@ -401,6 +423,8 @@ private:
         char pattern[1024] = {};
         uint64_t ptrFind = 0;
         bool restrictTime = false;
+        bool showAllocList = false;
+        std::vector<size_t> allocList;
     } m_memInfo;
 
     struct {

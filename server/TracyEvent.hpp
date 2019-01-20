@@ -177,6 +177,7 @@ struct CallstackFrameTree
     uint64_t allocExclusive, allocInclusive;
     uint32_t countExclusive, countInclusive;
     std::vector<CallstackFrameTree> children;
+    flat_hash_set<uint32_t, nohash<uint32_t>> callstacks;
 };
 
 enum { CallstackFrameTreeSize = sizeof( CallstackFrameTree ) };
@@ -209,6 +210,8 @@ struct ThreadData
     Vector<ZoneEvent*> timeline;
     Vector<ZoneEvent*> stack;
     Vector<MessageData*> messages;
+    uint32_t nextZoneId;
+    Vector<uint32_t> zoneIdStack;
 };
 
 struct GpuCtxData
@@ -230,6 +233,8 @@ struct LockMap
     flat_hash_map<uint64_t, uint8_t, nohash<uint64_t>> threadMap;
     std::vector<uint64_t> threadList;
     LockType type;
+    int64_t timeAnnounce;
+    int64_t timeTerminate;
     bool valid;
 };
 

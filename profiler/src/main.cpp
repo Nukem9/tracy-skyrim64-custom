@@ -1,11 +1,14 @@
+#include <algorithm>
 #include <assert.h>
 #include <inttypes.h>
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string>
+#include <unordered_map>
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
 #include <memory>
@@ -17,6 +20,7 @@
 #  include <shellapi.h>
 #endif
 
+#include "../../server/tracy_pdqsort.h"
 #include "../../server/TracyBadVersion.hpp"
 #include "../../server/TracyFileRead.hpp"
 #include "../../server/TracyImGui.hpp"
@@ -56,6 +60,18 @@ static void SetWindowTitleCallback( const char* title )
     s_customTitle = true;
 }
 
+std::vector<std::unordered_map<std::string, uint64_t>::const_iterator> RebuildConnectionHistory( const std::unordered_map<std::string, uint64_t>& connHistMap )
+{
+    std::vector<std::unordered_map<std::string, uint64_t>::const_iterator> ret;
+    ret.reserve( connHistMap.size() );
+    for( auto it = connHistMap.begin(); it != connHistMap.end(); ++it )
+    {
+        ret.emplace_back( it );
+    }
+    tracy::pdqsort_branchless( ret.begin(), ret.end(), []( const auto& lhs, const auto& rhs ) { return lhs->second > rhs->second; } );
+    return ret;
+}
+
 int main( int argc, char** argv )
 {
     std::unique_ptr<tracy::View> view;
@@ -68,6 +84,10 @@ int main( int argc, char** argv )
         {
             view = std::make_unique<tracy::View>( *f );
         }
+    }
+    else if( argc == 3 && strcmp( argv[1], "-a" ) == 0 )
+    {
+        view = std::make_unique<tracy::View>( argv[2] );
     }
 
     char title[128];
@@ -87,6 +107,30 @@ int main( int argc, char** argv )
             w = data[2];
             h = data[3];
             maximize = data[4];
+        }
+    }
+
+    std::string connHistFile = tracy::GetSavePath( "connection.history" );
+    std::unordered_map<std::string, uint64_t> connHistMap;
+    std::vector<std::unordered_map<std::string, uint64_t>::const_iterator> connHistVec;
+    {
+        FILE* f = fopen( connHistFile.c_str(), "rb" );
+        if( f )
+        {
+            uint64_t sz;
+            fread( &sz, 1, sizeof( sz ), f );
+            for( uint64_t i=0; i<sz; i++ )
+            {
+                uint64_t ssz, cnt;
+                fread( &ssz, 1, sizeof( ssz ), f );
+                assert( ssz < 1024 );
+                char tmp[1024];
+                fread( tmp, 1, ssz, f );
+                fread( &cnt, 1, sizeof( cnt ), f );
+                connHistMap.emplace( std::string( tmp, tmp+ssz ), cnt );
+            }
+            fclose( f );
+            connHistVec = RebuildConnectionHistory( connHistMap );
         }
     }
 
@@ -210,13 +254,70 @@ int main( int argc, char** argv )
             ImGui::SameLine();
             if( ImGui::Button( ICON_FA_VIDEO " Tutorial" ) )
             {
-                OpenWebpage( "https://www.youtube.com/watch?v=fB5B46lbapc" );
+                ImGui::OpenPopup( "tutorial" );
+            }
+            if( ImGui::BeginPopup( "tutorial" ) )
+            {
+                if( ImGui::Selectable( ICON_FA_VIDEO " Introduction to the Tracy Profiler" ) )
+                {
+                    OpenWebpage( "https://www.youtube.com/watch?v=fB5B46lbapc" );
+                }
+                if( ImGui::Selectable( ICON_FA_VIDEO " New features in Tracy Profiler v0.3" ) )
+                {
+                    OpenWebpage( "https://www.youtube.com/watch?v=3SXpDpDh2Uo" );
+                }
+                if( ImGui::Selectable( ICON_FA_VIDEO " New features in Tracy Profiler v0.4" ) )
+                {
+                    OpenWebpage( "https://www.youtube.com/watch?v=eAkgkaO8B9o" );
+                }
+                ImGui::EndPopup();
             }
             ImGui::Separator();
             ImGui::Text( "Connect to client" );
-            ImGui::InputText( "Address", addr, 1024 );
-            if( ImGui::Button( ICON_FA_WIFI " Connect" ) && *addr && !loadThread.joinable() )
+            bool connectClicked = false;
+            connectClicked |= ImGui::InputText( "", addr, 1024, ImGuiInputTextFlags_EnterReturnsTrue );
+            if( !connHistVec.empty() )
             {
+                ImGui::SameLine();
+                if( ImGui::BeginCombo( "##frameCombo", nullptr, ImGuiComboFlags_NoPreview ) )
+                {
+                    int idxRemove = -1;
+                    const auto sz = std::min<size_t>( 5, connHistVec.size() );
+                    for( size_t i=0; i<sz; i++ )
+                    {
+                        const auto& str = connHistVec[i]->first;
+                        if( ImGui::Selectable( str.c_str() ) )
+                        {
+                            memcpy( addr, str.c_str(), str.size() + 1 );
+                        }
+                        if( ImGui::IsItemHovered() && ImGui::IsKeyPressed( ImGui::GetKeyIndex( ImGuiKey_Delete ), false ) )
+                        {
+                            idxRemove = (int)i;
+                        }
+                    }
+                    if( idxRemove >= 0 )
+                    {
+                        connHistMap.erase( connHistVec[idxRemove] );
+                        connHistVec = RebuildConnectionHistory( connHistMap );
+                    }
+                    ImGui::EndCombo();
+                }
+            }
+            connectClicked |= ImGui::Button( ICON_FA_WIFI " Connect" );
+            if( connectClicked && *addr && !loadThread.joinable() )
+            {
+                std::string addrStr( addr );
+                auto it = connHistMap.find( addr );
+                if( it != connHistMap.end() )
+                {
+                    it->second++;
+                }
+                else
+                {
+                    connHistMap.emplace( std::move( addr ), 1 );
+                }
+                connHistVec = RebuildConnectionHistory( connHistMap );
+
                 view = std::make_unique<tracy::View>( addr, fixedWidth, SetWindowTitleCallback );
             }
             ImGui::Separator();
@@ -345,20 +446,24 @@ int main( int argc, char** argv )
         }
     }
 
-    FILE* f = fopen( winPosFile.c_str(), "wb" );
-    if( f )
     {
-        glfwGetWindowPos( window, &x, &y );
-        glfwGetWindowSize( window, &w, &h );
+        FILE* f = fopen( winPosFile.c_str(), "wb" );
+        if( f )
+        {
 #ifdef GLFW_MAXIMIZED
-        uint32_t maximized = glfwGetWindowAttrib( window, GLFW_MAXIMIZED );
+            uint32_t maximized = glfwGetWindowAttrib( window, GLFW_MAXIMIZED );
+            if( maximized ) glfwRestoreWindow( window );
 #else
-        uint32_t maximized = 0;
+            uint32_t maximized = 0;
 #endif
 
-        uint32_t data[5] = { uint32_t( x ), uint32_t( y ), uint32_t( w ), uint32_t( h ), maximized };
-        fwrite( data, 1, sizeof( data ), f );
-        fclose( f );
+            glfwGetWindowPos( window, &x, &y );
+            glfwGetWindowSize( window, &w, &h );
+
+            uint32_t data[5] = { uint32_t( x ), uint32_t( y ), uint32_t( w ), uint32_t( h ), maximized };
+            fwrite( data, 1, sizeof( data ), f );
+            fclose( f );
+        }
     }
 
     // Cleanup
@@ -368,6 +473,23 @@ int main( int argc, char** argv )
 
     glfwDestroyWindow(window);
     glfwTerminate();
+
+    {
+        FILE* f = fopen( connHistFile.c_str(), "wb" );
+        if( f )
+        {
+            uint64_t sz = uint64_t( connHistMap.size() );
+            fwrite( &sz, 1, sizeof( uint64_t ), f );
+            for( auto& v : connHistMap )
+            {
+                sz = uint64_t( v.first.size() );
+                fwrite( &sz, 1, sizeof( uint64_t ), f );
+                fwrite( v.first.c_str(), 1, sz, f );
+                fwrite( &v.second, 1, sizeof( v.second ), f );
+            }
+            fclose( f );
+        }
+    }
 
     return 0;
 }
